@@ -3,10 +3,13 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finance.db")
+DB = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "finance.db"))
 
 
 def init_db():
+    db_dir = os.path.dirname(DB)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     with sqlite3.connect(DB) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
