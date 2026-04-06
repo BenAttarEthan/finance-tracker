@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi Financier</title>
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #ede5d8;
+    --border: #cfc0a8;
+    --accent: #7a5c3a;
+    --accent2: #b07d4f;
+    --income: #3a7a5c;
+    --outcome: #7a3a3a;
+    --income-bg: rgba(58,122,92,0.08);
+    --outcome-bg: rgba(122,58,58,0.08);
+    --text: #2e1f0e;
+    --muted: #7a6550;
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); }
+  header span { color: var(--accent2); font-size: 0.9rem; }
+
+  .layout { display: grid; grid-template-columns: 370px 1fr; gap: 0; max-width: 1300px; margin: 32px auto; padding: 0 32px; align-items: start; }
+
+  /* ── FORM ── */
+  .form-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; position: sticky; top: 32px; }
+  .form-panel h2 { font-size: 1rem; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+
+  .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+  .type-btn { padding: 10px; border-radius: 7px; border: 1.5px solid var(--border); background: var(--bg); cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.15s; color: var(--muted); }
+  .type-btn.income.active  { background: var(--income-bg); border-color: var(--income); color: var(--income); }
+  .type-btn.outcome.active { background: var(--outcome-bg); border-color: var(--outcome); color: var(--outcome); }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); font-size: 0.95rem; outline: none; transition: border-color 0.15s; }
+  .field input:focus, .field select:focus { border-color: var(--accent2); }
+
+  .submit-btn { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 7px; font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-top: 4px; transition: background 0.15s; }
+  .submit-btn:hover { background: #5e4228; }
+
+  .msg { margin-top: 10px; font-size: 0.85rem; text-align: center; min-height: 18px; }
+  .msg.ok  { color: var(--income); }
+  .msg.err { color: var(--outcome); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel { padding-left: 32px; }
+
+  /* ── MONTHLY SUMMARY ── */
+  .monthly-section { margin-bottom: 36px; }
+  .monthly-section h2 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+  .monthly-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .monthly-table th { background: var(--surface); padding: 11px 16px; text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .monthly-table td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .monthly-table tr:last-child td { border-bottom: none; }
+  .monthly-table tr:hover td { background: rgba(122,92,58,0.04); }
+  .income-val  { color: var(--income); font-weight: 600; }
+  .outcome-val { color: var(--outcome); font-weight: 600; }
+  .balance-pos { color: var(--income); font-weight: 700; }
+  .balance-neg { color: var(--outcome); font-weight: 700; }
+
+  /* ── FILTERS + SEARCH ── */
+  .tx-section h2 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+  .search-bar { position: relative; margin-bottom: 10px; }
+  .search-bar input { width: 100%; padding: 10px 12px 10px 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 0.9rem; outline: none; transition: border-color 0.15s; }
+  .search-bar input:focus { border-color: var(--accent2); }
+  .search-bar .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.9rem; pointer-events: none; }
+
+  .tx-filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tx-filters select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 0.85rem; cursor: pointer; outline: none; }
+  .tx-filters select:focus { border-color: var(--accent2); }
+
+  /* ── TRANSACTION ITEMS ── */
+  .tx-list { display: flex; flex-direction: column; gap: 8px; }
+  .tx-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 14px; }
+  .tx-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tx-dot.income  { background: var(--income); }
+  .tx-dot.outcome { background: var(--outcome); }
+  .tx-info .desc { font-weight: 600; font-size: 0.92rem; color: var(--text); }
+  .tx-info .meta { font-size: 0.8rem; color: var(--muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .meta-tag { background: rgba(122,92,58,0.08); border: 1px solid var(--border); border-radius: 4px; padding: 1px 7px; font-size: 0.75rem; color: var(--muted); }
+  .tx-amount { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+  .tx-amount.income  { color: var(--income); }
+  .tx-amount.outcome { color: var(--outcome); }
+  .tx-delete { background: none; border: none; color: var(--border); cursor: pointer; font-size: 1rem; padding: 4px; border-radius: 5px; transition: color 0.15s; }
+  .tx-delete:hover { color: var(--outcome); }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💰 Suivi Financier</h1>
+  <span>Suivez vos revenus &amp; dépenses par mois</span>
+</header>
+
+<div class="layout">
+
+  <!-- FORM -->
+  <div class="form-panel">
+    <h2>Ajouter une transaction</h2>
+
+    <div class="type-toggle">
+      <button class="type-btn income active" onclick="setType('income')">+ Revenu</button>
+      <button class="type-btn outcome" onclick="setType('outcome')">− Dépense</button>
+    </div>
+
+    <div class="field">
+      <label>Montant (₪)</label>
+      <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01">
+    </div>
+
+    <div class="field">
+      <label>Catégorie</label>
+      <select id="category">
+        <option value="">— Sélectionner —</option>
+        <optgroup label="Revenus">
+          <option>Salaire</option>
+          <option>Freelance</option>
+          <option>Investissement</option>
+          <option>Autre revenu</option>
+        </optgroup>
+        <optgroup label="Dépenses">
+          <option>Loyer</option>
+          <option>Arnona</option>
+          <option>Eau</option>
+          <option>Gaz</option>
+          <option>Électricité</option>
+          <option>Alimentation</option>
+          <option>Transport</option>
+          <option>Loisirs</option>
+          <option>Santé</option>
+          <option>Shopping</option>
+          <option>Factures</option>
+          <option>Autre dépense</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Moyen de paiement</label>
+      <select id="payment_method">
+        <option value="">— Sélectionner —</option>
+        <option value="Carte de crédit">💳 Carte de crédit</option>
+        <option value="Carte directe">🏦 Carte directe</option>
+        <option value="Espèces">💵 Espèces</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Description</label>
+      <input type="text" id="description" placeholder="ex. Loyer mensuel">
+    </div>
+
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="date">
+    </div>
+
+    <button class="submit-btn" onclick="submitTransaction()">Ajouter la transaction</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-panel">
+
+    <!-- MONTHLY SUMMARY -->
+    <div class="monthly-section">
+      <h2>Résumé Mensuel</h2>
+      <table class="monthly-table">
+        <thead>
+          <tr>
+            <th>Mois</th>
+            <th>Revenus</th>
+            <th>Dépenses</th>
+            <th>Solde</th>
+            <th>Transactions</th>
+          </tr>
+        </thead>
+        <tbody id="monthly-body">
+          <tr><td colspan="5" class="empty">Aucune donnée</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div class="tx-section">
+      <h2>Toutes les Transactions</h2>
+
+      <!-- SEARCH BAR -->
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search" placeholder="Rechercher par description, catégorie, montant…" oninput="renderTransactions()">
+      </div>
+
+      <!-- FILTERS -->
+      <div class="tx-filters">
+        <select id="filter-type" onchange="renderTransactions()">
+          <option value="">Tous les types</option>
+          <option value="income">Revenus</option>
+          <option value="outcome">Dépenses</option>
+        </select>
+        <select id="filter-month" onchange="renderTransactions()">
+          <option value="">Tous les mois</option>
+        </select>
+        <select id="filter-category" onchange="renderTransactions()">
+          <option value="">Toutes les catégories</option>
+        </select>
+        <select id="filter-payment" onchange="renderTransactions()">
+          <option value="">Tous les moyens</option>
+          <option value="Carte de crédit">Carte de crédit</option>
+          <option value="Carte directe">Carte directe</option>
+          <option value="Espèces">Espèces</option>
+        </select>
+      </div>
+
+      <div class="tx-list" id="tx-list">
+        <div class="empty">Aucune transaction</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  let transactions = [];
+  let selectedType = "income";
+
+  document.getElementById("date").value = new Date().toISOString().split("T")[0];
+
+  function setType(type) {
+    selectedType = type;
+    document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
+    document.querySelector(`.type-btn.${type}`).classList.add("active");
+  }
+
+  function fmt(n) {
+    return "₪" + Number(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function monthLabel(year, month) {
+    return MONTHS[parseInt(month) - 1] + " " + year;
+  }
+
+  async function load() {
+    const [txRes, monthRes] = await Promise.all([
+      fetch("/api/transactions"),
+      fetch("/api/monthly")
+    ]);
+    transactions = await txRes.json();
+    const monthly = await monthRes.json();
+    renderMonthly(monthly);
+    populateMonthFilter();
+    populateCategoryFilter();
+    renderTransactions();
+  }
+
+  function renderMonthly(monthly) {
+    const tbody = document.getElementById("monthly-body");
+    if (!monthly.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty">Aucune donnée</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = monthly.map(r => {
+      const balance = r.total_income - r.total_outcome;
+      const balClass = balance >= 0 ? "balance-pos" : "balance-neg";
+      const balSign  = balance >= 0 ? "+" : "";
+      return `<tr>
+        <td><strong>${monthLabel(r.year, r.month)}</strong></td>
+        <td class="income-val">${fmt(r.total_income)}</td>
+        <td class="outcome-val">${fmt(r.total_outcome)}</td>
+        <td class="${balClass}">${balSign}${fmt(balance)}</td>
+        <td style="color:var(--muted)">${r.nb_transactions}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  function populateMonthFilter() {
+    const months = [...new Set(transactions.map(t => t.date.slice(0, 7)))].sort().reverse();
+    const sel = document.getElementById("filter-month");
+    const current = sel.value;
+    sel.innerHTML = `<option value="">Tous les mois</option>` +
+      months.map(m => {
+        const [y, mo] = m.split("-");
+        return `<option value="${m}" ${m === current ? "selected" : ""}>${monthLabel(y, mo)}</option>`;
+      }).join("");
+  }
+
+  function populateCategoryFilter() {
+    const cats = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
+    const sel = document.getElementById("filter-category");
+    const current = sel.value;
+    sel.innerHTML = `<option value="">Toutes les catégories</option>` +
+      cats.map(c => `<option value="${c}" ${c === current ? "selected" : ""}>${c}</option>`).join("");
+  }
+
+  function renderTransactions() {
+    const typeFilter     = document.getElementById("filter-type").value;
+    const monthFilter    = document.getElementById("filter-month").value;
+    const categoryFilter = document.getElementById("filter-category").value;
+    const paymentFilter  = document.getElementById("filter-payment").value;
+    const search         = document.getElementById("search").value.trim().toLowerCase();
+
+    let filtered = transactions;
+    if (typeFilter)     filtered = filtered.filter(t => t.type === typeFilter);
+    if (monthFilter)    filtered = filtered.filter(t => t.date.startsWith(monthFilter));
+    if (categoryFilter) filtered = filtered.filter(t => t.category === categoryFilter);
+    if (paymentFilter)  filtered = filtered.filter(t => t.payment_method === paymentFilter);
+    if (search) {
+      filtered = filtered.filter(t =>
+        (t.description || "").toLowerCase().includes(search) ||
+        (t.category    || "").toLowerCase().includes(search) ||
+        String(t.amount).includes(search)
+      );
+    }
+
+    const list = document.getElementById("tx-list");
+    if (!filtered.length) {
+      list.innerHTML = `<div class="empty">Aucune transaction trouvée</div>`;
+      return;
+    }
+
+    const PAYMENT_ICONS = { "Carte de crédit": "💳", "Carte directe": "🏦", "Espèces": "💵" };
+
+    list.innerHTML = filtered.map(t => {
+      const payIcon = t.payment_method ? `<span class="meta-tag">${PAYMENT_ICONS[t.payment_method] || ""} ${t.payment_method}</span>` : "";
+      const catTag  = t.category ? `<span class="meta-tag">${t.category}</span>` : "";
+      return `
+      <div class="tx-item">
+        <div class="tx-dot ${t.type}"></div>
+        <div class="tx-info">
+          <div class="desc">${t.description || t.category || "—"}</div>
+          <div class="meta">${catTag}${payIcon}<span>${t.date}</span></div>
+        </div>
+        <div class="tx-amount ${t.type}">${t.type === "income" ? "+" : "−"}${fmt(t.amount)}</div>
+        <button class="tx-delete" onclick="deleteTransaction(${t.id})" title="Supprimer">✕</button>
+      </div>`;
+    }).join("");
+  }
+
+  async function submitTransaction() {
+    const msg = document.getElementById("msg");
+    const payload = {
+      type:           selectedType,
+      amount:         document.getElementById("amount").value,
+      category:       document.getElementById("category").value,
+      payment_method: document.getElementById("payment_method").value,
+      description:    document.getElementById("description").value,
+      date:           document.getElementById("date").value,
+    };
+    if (!payload.amount || !payload.date) {
+      msg.textContent = "Veuillez renseigner le montant et la date.";
+      msg.className = "msg err";
+      return;
+    }
+    const res = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      msg.textContent = "Transaction ajoutée !";
+      msg.className = "msg ok";
+      document.getElementById("amount").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("category").value = "";
+      document.getElementById("payment_method").value = "";
+      setTimeout(() => msg.textContent = "", 2500);
+      load();
+    } else {
+      const err = await res.json();
+      msg.textContent = err.error || "Une erreur est survenue.";
+      msg.className = "msg err";
+    }
+  }
+
+  async function deleteTransaction(id) {
+    await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    load();
+  }
+
+  load();
+</script>
+</body>
+</html>
