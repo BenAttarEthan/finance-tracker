@@ -6,6 +6,25 @@ app = Flask(__name__)
 DB = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "finance.db"))
 # On Render, DB_PATH=/data/finance.db so data persists across deploys
 
+# Always init DB at startup, whether running via python3 or gunicorn
+with sqlite3.connect(DB) as _conn:
+    _conn.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            type           TEXT    NOT NULL CHECK(type IN ('income', 'outcome')),
+            amount         REAL    NOT NULL CHECK(amount > 0),
+            category       TEXT,
+            description    TEXT,
+            payment_method TEXT,
+            date           DATE    NOT NULL,
+            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    try:
+        _conn.execute("ALTER TABLE transactions ADD COLUMN payment_method TEXT")
+    except Exception:
+        pass
+
 
 def get_db():
     conn = sqlite3.connect(DB)
@@ -98,5 +117,4 @@ def monthly_summary():
 
 
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True, port=5050)
