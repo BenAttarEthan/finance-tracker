@@ -4,36 +4,15 @@ import os
 
 app = Flask(__name__)
 DB = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "finance.db"))
-# On Render, DB_PATH=/data/finance.db so data persists across deploys
-
-# Always init DB at startup, whether running via python3 or gunicorn
-with sqlite3.connect(DB) as _conn:
-    _conn.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            type           TEXT    NOT NULL CHECK(type IN ('income', 'outcome')),
-            amount         REAL    NOT NULL CHECK(amount > 0),
-            category       TEXT,
-            description    TEXT,
-            payment_method TEXT,
-            date           DATE    NOT NULL,
-            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    try:
-        _conn.execute("ALTER TABLE transactions ADD COLUMN payment_method TEXT")
-    except Exception:
-        pass
-
-
-def get_db():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 
 def init_db():
-    with get_db() as conn:
+    # Ensure the parent directory exists (critical on Render where /data is a mounted disk)
+    db_dir = os.path.dirname(DB)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
+    with sqlite3.connect(DB) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,11 +25,16 @@ def init_db():
                 created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Add payment_method column if upgrading an existing DB
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN payment_method TEXT")
         except Exception:
             pass
+
+
+def get_db():
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 @app.route("/")
@@ -115,6 +99,9 @@ def monthly_summary():
         """).fetchall()
     return jsonify([dict(r) for r in rows])
 
+
+# Init is called here so it runs under both gunicorn and python3
+init_db()
 
 if __name__ == "__main__":
     app.run(debug=True, port=5050)
